@@ -7,6 +7,7 @@ import { FrontDesk, KitchenBoard, StaffHome, StationBoard } from './pages/boards
 import { Dashboard, MenuAdmin, SettingsPage, Tables, Team } from './pages/admin';
 import { InstallPage } from './pwa';
 import { Empty, Toasts } from './components/ui';
+import { NoticeStack, Splash } from './components/fx';
 import { Link } from './router';
 import { ROLE_INFO, useAuth, type Station } from './api';
 
@@ -33,6 +34,6 @@ function Page() {
   if (path === '/staff/tables') return managerOnly(<Tables />);
   if (path === '/staff/team') return managerOnly(<Team />);
   if (path === '/staff/settings') return managerOnly(<SettingsPage />);
-  return <div className="page"><Empty icon="🧭" title="Page not found"><Link to="/">Go home</Link></Empty></div>;
+  return <div className="page"><Empty icon="menu" title="Page not found"><Link to="/">Go home</Link></Empty></div>;
 }
-export default function App() { return <><Page /><Toasts /></>; }
+export default function App() { return <><Splash /><Page /><Toasts /><NoticeStack /></>; }

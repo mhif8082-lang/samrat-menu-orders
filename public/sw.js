@@ -1,5 +1,5 @@
 // Samrat Menu Orders service worker: offline app shell + cached images.
-const VERSION = 'smo-v1';
+const VERSION = 'smo-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/assets/samrat-logo.svg', '/icons/icon-192.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -15,5 +15,11 @@ self.addEventListener('fetch', e => {
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: 'window' }).then(list => list[0] ? list[0].focus() : self.clients.openWindow('/staff/kitchen')));
+  const url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    const same = list.find(c => new URL(c.url).pathname === new URL(url, self.location.origin).pathname);
+    if (same) return same.focus();
+    if (list[0]) { list[0].focus(); return list[0].navigate ? list[0].navigate(url) : null; }
+    return self.clients.openWindow(url);
+  }));
 });

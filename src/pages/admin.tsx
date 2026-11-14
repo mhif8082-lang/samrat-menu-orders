@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import { api, npr, refreshMenu, ROLE_INFO, STATIONS, useAuth, useMenu, type Dish, type Role, type Settings, type StaffMember, type Station } from '../api';
 import { CountUp, DishArt, Empty, Sheet, toast, VegMark } from '../components/ui';
 import { StaffShell, useStaff } from './staff-shell';
+import { Icon } from '../components/icons';
 
 // ── Dashboard ───────────────────────────────────────────────────────────────
 export function Dashboard() { return <StaffShell title="Dashboard"><DashInner /></StaffShell>; }
@@ -67,7 +68,7 @@ function DashInner() {
       </section>
       <section className="card">
         <h3>Station load</h3>
-        {stationLoad.map(s => <div key={s.id} className="hbar"><span>{s.icon} {s.id === 'bar' ? 'Drinks' : s.label}</span><div><i style={{ width: `${(s.qty / stationMax) * 100}%` }} /></div><b>{s.qty}</b></div>)}
+        {stationLoad.map(s => <div key={s.id} className="hbar"><span><Icon name={s.icon} size={16} /> {s.label}</span><div><i style={{ width: `${(s.qty / stationMax) * 100}%` }} /></div><b>{s.qty}</b></div>)}
       </section>
       <section className="card">
         <h3>Payments</h3>
@@ -94,15 +95,15 @@ function MenuInner() {
   const items = menu.items.filter(d => !q || d.name.toLowerCase().includes(q.toLowerCase()));
   return <>
     <div className="desk-tools">
-      <label className="search sm"><span aria-hidden="true">⌕</span><input type="search" placeholder="Find a dish" value={q} onChange={e => setQ(e.target.value)} aria-label="Find a dish" /></label>
-      {isManager && <><button className="btn btn-ghost btn-sm" onClick={() => setBulk(true)}>📋 Paste menu</button><button className="btn btn-primary btn-sm" onClick={() => setEdit({ category: menu.categories[0], station: 'kitchen', price: 0, available: true })}>+ Add dish</button></>}
+      <label className="search sm"><Icon name="search" size={17} /><input type="search" placeholder="Find a dish" value={q} onChange={e => setQ(e.target.value)} aria-label="Find a dish" /></label>
+      {isManager && <><button className="btn btn-ghost btn-sm" onClick={() => setBulk(true)}><Icon name="menu" size={16} /> Paste menu</button><button className="btn btn-primary btn-sm" onClick={() => setEdit({ category: menu.categories[0], station: 'kitchen', price: 0, available: true })}>+ Add dish</button></>}
     </div>
     {!isManager && <p className="muted small">Tap a switch to mark a dish sold out. Guests see it instantly. Prices can be changed by the admin.</p>}
     {menu.categories.map(c => { const list = items.filter(d => d.category === c); return list.length ? <section key={c} className="admin-group">
       <h3 className="sub-h">{c} <small>{list.length}</small></h3>
       <div className="admin-list">{list.map(d => <div key={d.id} className={`admin-row${d.available ? '' : ' off'}`}>
         <div className="a-thumb">{d.image ? <img src={d.image} alt="" /> : <DishArt name={d.name} station={d.station} />}</div>
-        <div className="a-info"><b>{d.name} <VegMark veg={d.veg} /></b><small>{STATIONS.find(s => s.id === d.station)?.icon} {d.station === 'bar' ? 'Bar' : d.station} · {d.price > 0 ? (d.options?.length ? d.options.map(o => `${o.label} ${o.price}`).join(' · ') : npr(d.price)) : 'No price yet'}</small></div>
+        <div className="a-info"><b>{d.name} <VegMark veg={d.veg} /></b><small>{STATIONS.find(s => s.id === d.station)?.label}, {d.price > 0 ? (d.options?.length ? d.options.map(o => `${o.label} ${o.price}`).join(' · ') : npr(d.price)) : 'No price yet'}</small></div>
         <label className="switch" title={d.available ? 'Available' : 'Sold out'}><input type="checkbox" checked={d.available} onChange={() => toggle(d)} aria-label={`${d.name} available`} /><span /></label>
         {isManager && <button className="btn btn-text btn-sm" onClick={() => setEdit(d)}>Edit</button>}
       </div>)}</div>
@@ -134,12 +135,12 @@ function DishForm({ dish, categories, onDone }: { dish: Partial<Dish>; categorie
     try { await api(`/menu/${dish.id}`, { method: 'DELETE' }); await refreshMenu(); toast(`${dish.name} deleted`); onDone(); } catch (e) { toast((e as Error).message, 'error'); }
   }
   return <form className="form" onSubmit={e => { e.preventDefault(); save(); }}>
-    <div className="sheet-head"><h2>{dish.id ? 'Edit dish' : 'New dish'}</h2><button type="button" className="icon-btn" onClick={onDone} aria-label="Close">✕</button></div>
+    <div className="sheet-head"><h2>{dish.id ? 'Edit dish' : 'New dish'}</h2><button type="button" className="icon-btn" onClick={onDone} aria-label="Close"><Icon name="close" size={18} /></button></div>
     <label className="field"><span>Name</span><input required value={d.name || ''} onChange={e => set('name', e.target.value)} maxLength={60} /></label>
     <label className="field"><span>Sizes / styles <small>(optional: e.g. “Quarter 300, Half 600, Full 1200”)</small></span><input value={optText} onChange={e => setOptText(e.target.value)} placeholder="Leave empty for a single price" /></label>
     <div className="field-row">
       {!optText.trim() && <label className="field"><span>Price (NPR)</span><input required type="number" min={0} inputMode="numeric" value={d.price ?? ''} onChange={e => set('price', Number(e.target.value))} /></label>}
-      <label className="field"><span>Station</span><select value={d.station} onChange={e => set('station', e.target.value as Station)}>{STATIONS.map(s => <option key={s.id} value={s.id}>{s.icon} {s.id === 'bar' ? 'Drinks' : s.label}</option>)}</select></label>
+      <label className="field"><span>Station</span><select value={d.station} onChange={e => set('station', e.target.value as Station)}>{STATIONS.map(s => <option key={s.id} value={s.id}>{s.id === 'bar' ? 'Drinks' : s.label}</option>)}</select></label>
     </div>
     <div className="field-row">
       <label className="field"><span>Category</span><select value={d.category} onChange={e => set('category', e.target.value)}>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
@@ -188,7 +189,7 @@ function BulkImport({ onDone }: { onDone: () => void }) {
     } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   }
   return <div className="form">
-    <div className="sheet-head"><h2>Paste your menu</h2><button className="icon-btn" onClick={onDone} aria-label="Close">✕</button></div>
+    <div className="sheet-head"><h2>Paste your menu</h2><button className="icon-btn" onClick={onDone} aria-label="Close"><Icon name="close" size={18} /></button></div>
     <p className="muted small">One dish per line with its price. Lines without a price become category headings. Existing dishes with the same name get the new price.</p>
     <textarea className="mono" rows={9} value={text} onChange={e => setText(e.target.value)} placeholder={'Breads\nGarlic Naan - 100\nButter Naan - 80\n\nCurries\nButter Chicken - 480'} />
     {rows.length > 0 && <div className="preview"><b>{rows.length} dishes found</b><ul>{rows.slice(0, 40).map((r, i) => <li key={i}><span>{r.name}</span><small>{r.category} · {r.station === 'bar' ? 'Drinks' : r.station}</small><b>{npr(r.price)}</b></li>)}</ul></div>}
@@ -211,7 +212,7 @@ function TablesInner() {
   if (!menu) return null;
   const open = (t: string) => orders.filter(o => o.table === t && !['cancelled'].includes(o.status) && (!o.paid || o.status !== 'served'));
   return <>
-    <div className="desk-tools no-print"><p className="muted small grow">Print these and place one on each table. Guests scan → the menu opens with their table already chosen.</p><button className="btn btn-primary btn-sm" onClick={() => print()}>🖨 Print all</button></div>
+    <div className="desk-tools no-print"><p className="muted small grow">Print these and place one on each table. Guests scan it and the menu opens with their table already chosen.</p><button className="btn btn-primary btn-sm" onClick={() => print()}><Icon name="print" size={16} /> Print all</button></div>
     <div className="qr-grid">{Object.entries(qrs).map(([t, svg], i) => { const busy = open(t); return <div key={t} className={`qr-card reveal${busy.length ? ' busy' : ''}`} style={{ '--d': Math.min(i, 12) } as React.CSSProperties}>
       <div className="qr-head"><b>{t === 'Takeaway' ? 'Takeaway' : `Table ${t}`}</b>{busy.length > 0 && <span className="status-pill preparing no-print">{busy.length} open</span>}</div>
       <div className="qr" dangerouslySetInnerHTML={{ __html: svg }} />
@@ -244,7 +245,7 @@ function TeamInner() {
   return <div className="two-col">
     <section className="card"><h3>Logins</h3>
       {!staff ? <p className="muted">Loading…</p> : staff.length === 0 ? <Empty title="No staff yet" /> : <ul className="team-list">{staff.map(s => <li key={s.id}>
-        <span className="avatar">{ROLE_INFO[s.role]?.icon || s.name[0]}</span>
+        <span className="avatar"><Icon name={ROLE_INFO[s.role]?.icon || 'users'} size={18} /></span>
         <div><b>{s.name}{s.id === me.id && ' (you)'}</b><small>Username <code>{s.username}</code> · {ROLE_INFO[s.role]?.label}: {ROLE_INFO[s.role]?.text}</small></div>
         <button className="btn btn-text btn-sm" onClick={() => resetPw(s)}>Change password</button>
         {s.id !== me.id && !['admin', 'waiter', 'tandoor', 'kitchen'].includes(s.id) && <button className="btn btn-text btn-sm danger" onClick={() => remove(s)}>Remove</button>}

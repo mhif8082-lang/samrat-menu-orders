@@ -16,16 +16,16 @@ export interface Order {
 export type Role = 'admin' | 'waiter' | 'tandoor' | 'kitchen';
 export interface StaffMember { id: string; username: string; name: string; role: Role }
 export const ROLE_INFO: Record<Role, { label: string; home: string; icon: string; text: string }> = {
-  waiter: { label: 'Waiter', home: '/staff/orders', icon: '🧾', text: 'Tables, serving, bills & drinks' },
-  tandoor: { label: 'Tandoor section', home: '/staff/station/tandoor', icon: '🔥', text: 'Naan, roti, tandoori & grill' },
-  kitchen: { label: 'Kitchen section', home: '/staff/station/kitchen', icon: '🍲', text: 'Curries, momo, rice & more' },
-  admin: { label: 'Admin', home: '/staff/dashboard', icon: '📊', text: 'Sales, dashboard, menu, team' },
+  waiter: { label: 'Waiter', home: '/staff/orders', icon: 'waiter', text: 'Tables, serving, bills & drinks' },
+  tandoor: { label: 'Tandoor section', home: '/staff/station/tandoor', icon: 'tandoor', text: 'Naan, roti, tandoori & grill' },
+  kitchen: { label: 'Kitchen section', home: '/staff/station/kitchen', icon: 'pot', text: 'Curries, momo, rice & more' },
+  admin: { label: 'Admin', home: '/staff/dashboard', icon: 'chart', text: 'Sales, dashboard, menu, team' },
 };
 
 export const STATIONS: { id: Station; label: string; icon: string }[] = [
-  { id: 'tandoor', label: 'Tandoor', icon: '🔥' },
-  { id: 'kitchen', label: 'Kitchen', icon: '🍲' },
-  { id: 'bar', label: 'Drinks', icon: '🥤' },
+  { id: 'tandoor', label: 'Tandoor', icon: 'tandoor' },
+  { id: 'kitchen', label: 'Kitchen', icon: 'pot' },
+  { id: 'bar', label: 'Drinks & bar', icon: 'glass' },
 ];
 export const STATUS_LABEL: Record<Status, string> = { new: 'New', preparing: 'Cooking', ready: 'Ready', served: 'Served', cancelled: 'Cancelled' };
 
@@ -87,7 +87,7 @@ export const refreshMenu = () => api<MenuData>('/menu').then(setMenu);
 export type Live = 'connecting' | 'live' | 'offline';
 /** Live order updates. Uses Server-Sent Events, and falls back to polling every 2s
  *  when a proxy buffers the stream (e.g. free Cloudflare tunnels). */
-export function useLiveStream(opts: { staff?: boolean; orders?: string[]; onOrder?: (o: Order) => void; onHello?: () => void }) {
+export function useLiveStream(opts: { staff?: boolean; orders?: string[]; onOrder?: (o: Order) => void; onHello?: () => void; onRemoved?: (id: string) => void }) {
   const [state, setState] = useState<Live>('connecting');
   const handlers = useRef(opts); handlers.current = opts;
   const token = useAuth()?.token;
@@ -120,6 +120,7 @@ export function useLiveStream(opts: { staff?: boolean; orders?: string[]; onOrde
       es.addEventListener('hello', () => { streaming = true; setState('live'); handlers.current.onHello?.(); });
       es.addEventListener('order', e => handlers.current.onOrder?.(JSON.parse((e as MessageEvent).data)));
       es.addEventListener('menu', e => setMenu(JSON.parse((e as MessageEvent).data)));
+      es.addEventListener('removed', e => handlers.current.onRemoved?.(JSON.parse((e as MessageEvent).data).id));
       es.onerror = () => {
         if (streaming) { streaming = false; since = Date.now() - 10000; }
         if (es?.readyState === EventSource.CLOSED && !closed) retry = window.setTimeout(connect, 3000);

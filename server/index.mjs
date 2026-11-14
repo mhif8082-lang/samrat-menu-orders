@@ -18,7 +18,7 @@ const store = new Store(process.env.DATA_FILE || path.join(ROOT, 'data', 'db.jso
 const db = store.data;
 if (!db.menu) db.menu = SEED_MENU.map(d => ({ available: true, ...d }));
 if (!db.categories) db.categories = [...CATEGORIES];
-if (!db.settings) db.settings = { restaurantName: 'Samrat Tandoori', tables: 12, ordersOpen: true, serviceChargePct: 0, vatPct: 0, currency: 'NPR' };
+if (!db.settings) db.settings = { restaurantName: 'Samrat Tandoori', tables: 21, ordersOpen: true, serviceChargePct: 0, vatPct: 0, currency: 'NPR' };
 // Four built-in accounts. Passwords come from .env (or the defaults below on first run).
 const ACCOUNTS = [
   { id: 'admin', username: 'admin', name: 'Admin', role: 'admin', env: 'ADMIN_PASSWORD', fallback: 'admin123' },
@@ -269,7 +269,16 @@ async function api(req, res, url) {
     return send(res, 200, { order: staffView(o) });
   }
 
-  // Manager: menu, settings, staff
+  if (seg[0] === 'orders' && seg[1] && m === 'DELETE') {
+    requireRole(req, url, 'admin');
+    const before = db.orders.length;
+    db.orders = db.orders.filter(o => o.id !== seg[1]);
+    if (db.orders.length === before) throw new HttpError(404, 'Order not found');
+    store.save(); broadcast('removed', { id: seg[1] }, c => c.staff);
+    return send(res, 204);
+  }
+
+  // Admin: menu, settings, staff
   if (p === '/menu' && m === 'POST') {
     requireRole(req, url, 'admin');
     const b = await readJson(req);

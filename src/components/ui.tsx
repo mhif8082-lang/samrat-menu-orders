@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Icon } from './icons';
 import { useSyncExternalStore } from 'react';
 import type { Live } from '../api';
 
@@ -28,8 +29,8 @@ export function LiveBadge({ state }: { state: Live }) {
   return <span className={`live-badge ${state}`} role="status"><i />{state === 'live' ? 'Live' : state === 'connecting' ? 'Connecting…' : 'Reconnecting…'}</span>;
 }
 
-export function Empty({ icon = '🍽️', title, children }: { icon?: string; title: string; children?: ReactNode }) {
-  return <div className="empty"><div className="empty-icon" aria-hidden="true">{icon}</div><h3>{title}</h3>{children && <p>{children}</p>}</div>;
+export function Empty({ icon = 'menu', title, children }: { icon?: string; title: string; children?: ReactNode }) {
+  return <div className="empty"><div className="empty-icon" aria-hidden="true"><Icon name={icon} size={30} /></div><h3>{title}</h3>{children && <p>{children}</p>}</div>;
 }
 
 export function VegMark({ veg }: { veg?: boolean }) {
@@ -39,8 +40,7 @@ export function VegMark({ veg }: { veg?: boolean }) {
 
 /** Tile shown when a dish has no photo. */
 export function DishArt({ name, station }: { name: string; station: string }) {
-  const icon = station === 'bar' ? '🥤' : station === 'tandoor' ? '🔥' : '🍲';
-  return <div className={`dish-art ${station}`} aria-hidden="true"><span>{icon}</span><b>{name.split(' ').map(w => w[0]).join('').slice(0, 2)}</b></div>;
+  return <div className={`dish-art ${station}`} aria-hidden="true"><Icon name={station === 'bar' ? 'glass' : station === 'tandoor' ? 'tandoor' : 'pot'} size={34} /><b>{name.split(' ').map(w => w[0]).join('').slice(0, 2)}</b></div>;
 }
 
 // ── Toasts ──────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ export function toast(text: string, tone: Toast['tone'] = 'ok') {
 }
 export function Toasts() {
   const list = useSyncExternalStore(cb => { tl.add(cb); return () => tl.delete(cb); }, () => toasts);
-  return <div className="toasts" role="status" aria-live="polite">{list.map(t => <div key={t.id} className={`toast ${t.tone}`}>{t.tone === 'error' ? '⚠︎' : t.tone === 'info' ? '🔔' : '✓'} {t.text}</div>)}</div>;
+  return <div className="toasts" role="status" aria-live="polite">{list.map(t => <div key={t.id} className={`toast ${t.tone}`}><Icon name={t.tone === 'error' ? 'alert' : t.tone === 'info' ? 'bell' : 'check'} size={18} /> {t.text}</div>)}</div>;
 }
 
 export function Sheet({ open, onClose, children, label, side = 'bottom' }: { open: boolean; onClose: () => void; children: ReactNode; label: string; side?: 'bottom' | 'right' }) {

@@ -1,0 +1,12 @@
+[Unit]
+Description=Samrat Menu Orders (public link via Cloudflare quick tunnel)
+After=network-online.target samrat-menu-orders.service
+
+[Service]
+WorkingDirectory=/home/savant/projects/samrat-menu-orders
+ExecStart=/home/savant/projects/samrat-menu-orders/tunnel.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -309,9 +309,9 @@ Strawberry | - | Buy 1 get 1 free
 // Photos we have for some dishes.
 const PHOTOS = {
   'butter-chicken': 'butter-chicken', 'chicken-butter-masala': 'chicken-butter-masala', 'chicken-curry': 'chicken-curry',
-  'tandoori-chicken': 'tandoori-chicken', 'tandoori-leg': 'tandoori-chicken', 'garlic-naan': 'garlic-naan', 'cheese-naan': 'cheese-naan',
-  'cheese-garlic-butter-naan': 'cheese-naan', 'butter-naan': 'butter-naan', 'plain-naan': 'plain-naan', 'chicken-biryani': 'biryani',
-  'mutton-biryani': 'mutton-biryani', 'veg-biryani': 'veg-biryani', 'mushroom-biryani': 'veg-biryani', 'egg-biryani': 'biryani',
+  'tandoori-chicken': 'tandoori-chicken', 'garlic-naan': 'garlic-naan', 'cheese-naan': 'cheese-naan',
+  'butter-naan': 'butter-naan', 'plain-naan': 'plain-naan', 'chicken-biryani': 'biryani',
+  'mutton-biryani': 'mutton-biryani', 'veg-biryani': 'veg-biryani',
 };
 const BADGES = { 'butter-chicken': 'House favourite', 'tandoori-chicken': 'Tandoor special', 'garlic-naan': 'Perfect for dipping', 'chicken-biryani': 'Popular', 'chicken-mo-mo': 'Popular' };
 const NON_VEG = /mixed chowmein|chicken|mutton|fish|prawn|egg|omelette|tuna|sausage|keema|pangra|buffalo|khaja|club sandwich|breakfast set|masala omelette|lollipop/i;

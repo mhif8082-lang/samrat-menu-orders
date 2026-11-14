@@ -24,7 +24,7 @@ Installable as an app (PWA) on Android, iPhone, Windows, Mac and Linux. Open the
 | Staff | `/staff/orders` | Front desk: waiter/bill alerts, mark served, take payment (cash/card/QR), print bill, take an order for a walk-in |
 | Staff | `/staff/menu` | Mark dishes sold out (managers can also edit prices, add/delete dishes, **paste a whole menu**) |
 | Admin | `/staff/dashboard` | Revenue, orders, average order, prep time, sales chart, best sellers, station load, payments |
-| Admin | `/staff/tables` | Printable QR code for every table |
+| Admin | `/staff/tables` | Printable QR code for every table (21 tables + takeaway) |
 | Admin | `/staff/team` | Logins: usernames, passwords, sections |
 | Admin | `/staff/settings` | Pause online ordering, number of tables, service charge %, VAT %, categories, sound/notifications |
 
@@ -58,20 +58,36 @@ be changed any time on **Staff → Team & logins** (admin). Extra logins (e.g. `
 
 ### Keep it running
 
-`systemd/samrat-menu-orders.service` starts the server and tunnel at login and restarts them if they crash:
+Two systemd user services, so the server can be updated without changing the public link:
+
+| Service | What it runs |
+|---|---|
+| `samrat-menu-orders` | the app server (`node server/index.mjs`, reads `.env`) |
+| `samrat-tunnel` | the free public HTTPS link (`tunnel.sh`, Cloudflare quick tunnel) |
 
 ```sh
-mkdir -p ~/.config/systemd/user && cp systemd/samrat-menu-orders.service ~/.config/systemd/user/
-systemctl --user daemon-reload && systemctl --user enable --now samrat-menu-orders
-cat .tools/public-url.txt           # the current public link
+cp systemd/*.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+systemctl --user enable --now samrat-menu-orders samrat-tunnel
+cat .tools/public-url.txt                     # the current public link
+systemctl --user restart samrat-menu-orders   # after an update: link stays the same
 ```
 
 Live updates use a direct stream where the network allows it. Through the free tunnel they fall back to checking
-every 2 seconds automatically (orders still reach the screens in about 1–2 s).
+every 2 seconds automatically (orders reach the screens in about 1–2 s).
 
-The free trycloudflare.com link changes each time the tunnel restarts. For a permanent address, use a named
-Cloudflare Tunnel on your own domain, or deploy to any Node host (Render, Railway, Fly.io, a VPS) with
-`npm install && npm run build && npm start` and a persistent disk for `data/`.
+The free trycloudflare.com link changes only when `samrat-tunnel` restarts (or the computer reboots). For a permanent
+address, use a named Cloudflare Tunnel on your own domain, or deploy to any Node host (Render, Railway, Fly.io, a VPS)
+with `npm install && npm run build && npm start` and a persistent disk for `data/`.
+
+### Phones (iPhone and Android)
+
+It installs as an app on both: Android shows an **Install** prompt; iPhone users tap Share, then **Add to Home Screen**
+(the app shows a guide for this). Installed apps get order alerts as system notifications (iPhone needs iOS 16.4+
+and the app added to the home screen). Sound starts after the first tap, as phones require.
+
+### Test orders
+
+Admins can delete an order permanently from **Front desk → All → Delete** (for test orders; removes it from sales).
 
 ## Changing the menu
 
