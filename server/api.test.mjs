@@ -7,7 +7,7 @@ import path from 'node:path';
 const PORT = 18000 + Math.floor(Math.random() * 1000);
 process.env.PORT = String(PORT);
 process.env.DATA_FILE = path.join(mkdtempSync(path.join(tmpdir(), 'smo-')), 'db.json');
-process.env.KITCHEN_PASSWORD = 'kitch-pass'; process.env.ADMIN_PASSWORD = 'admin-pass';
+process.env.KITCHEN_PASSWORD = 'kitch-pass'; process.env.ADMIN_PASSWORD = 'admin-pass'; process.env.TANDOOR_PASSWORD = 'tand-pass'; process.env.PUSH_DRY_RUN = '1';
 let server;
 const B = `http://localhost:${PORT}/api`;
 const j = async (p, opts = {}) => { const r = await fetch(B + p, { ...opts, headers: { 'content-type': 'application/json', ...(opts.token ? { authorization: `Bearer ${opts.token}` } : {}) }, body: opts.body && JSON.stringify(opts.body) }); return { status: r.status, body: r.status === 204 ? null : await r.json() }; };
@@ -59,4 +59,25 @@ test('polling fallback returns only changed orders', async () => {
   const again = await j(`/updates?staff=1&since=${first.body.at}`, { token });
   assert.equal(again.body.orders.length, 0);
   assert.equal((await j('/updates?staff=1&since=0')).body.orders.length, 0); // no token, no orders
+});
+
+test('push: each section is notified only about its own items; guests about their order', async () => {
+  const login = async (u, p) => (await j('/login', { method: 'POST', body: { username: u, password: p } })).body.token;
+  const kitchen = await login('kitchen', 'kitch-pass'), tandoor = await login('tandoor', 'tand-pass'), admin = await login('admin', 'admin-pass');
+  await j('/settings', { method: 'PUT', token: admin, body: { ordersOpen: true } });
+  const sub = n => ({ endpoint: `https://push.example.com/${n}`, keys: { p256dh: 'BKey' + n, auth: 'auth' + n } });
+  assert.equal((await j('/push/subscribe', { method: 'POST', body: { subscription: sub('anon') } })).status, 401);
+  assert.equal((await j('/push/subscribe', { method: 'POST', token: kitchen, body: { subscription: sub('k') } })).status, 201);
+  assert.equal((await j('/push/subscribe', { method: 'POST', token: tandoor, body: { subscription: sub('t') } })).status, 201);
+  const { body: { order, key } } = await j('/orders', { method: 'POST', body: { table: '9', items: [{ id: 'butter-chicken', qty: 1 }] } });
+  assert.equal((await j('/push/subscribe', { method: 'POST', body: { subscription: sub('g'), order: `${order.id}.${key}` } })).status, 201);
+  assert.equal((await j('/push/subscribe', { method: 'POST', body: { subscription: sub('g2'), order: `${order.id}.wrong` } })).status, 404);
+  let sent = (await j('/push/sent', { token: admin })).body.sent;
+  const news = sent.filter(x => x.payload.title.startsWith(`New order #${order.number}`));
+  assert.deepEqual(news.map(x => x.count).reduce((a, b) => a + b, 0), 1); // only the kitchen device (no tandoor items)
+  await j(`/orders/${order.id}`, { method: 'PATCH', token: kitchen, body: { station: 'kitchen', done: true } });
+  sent = (await j('/push/sent', { token: admin })).body.sent;
+  const ready = sent.find(x => x.payload.title === 'Your food is ready' && x.payload.url === `/order/${order.id}`);
+  assert.ok(ready && ready.count === 1);
+  assert.equal((await j('/push/key')).body.publicKey.length > 40, true);
 });

@@ -111,6 +111,8 @@ export async function systemNotify(title: string, body: string, opts: { tag?: st
   try {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     if (!document.hidden && !opts.force) return;
+    // Push is on: the server's push already shows this notification, so don't double up.
+    if (!opts.force) { try { if (localStorage.getItem('smo-push-on') === '1') return; } catch { /* ignore */ } }
     const reg = await navigator.serviceWorker?.getRegistration();
     const o = { body, icon: '/icons/icon-192.png', badge: '/icons/badge-96.png', tag: opts.tag || title, data: { url: opts.url || location.pathname + location.search }, vibrate: [200, 100, 200] } as NotificationOptions;
     if (reg) await reg.showNotification(title, o); else new Notification(title, o);

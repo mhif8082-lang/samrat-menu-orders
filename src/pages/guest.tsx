@@ -4,9 +4,11 @@ import { addToCart, cartKey, cartLines, cartSummary, clearCart, dishCount, getTa
 import { Link, navigate, useRoute } from '../router';
 import { CountUp, Empty, LiveBadge, Logo, Sheet, toast, VegMark } from '../components/ui';
 import { Embers, InstallNudge, notice, OrderSent, Tandoor } from '../components/fx';
-import { askNotifications, confetti, flashTitle, flyTo, haptic, sfx, systemNotify } from '../motion';
+import { confetti, flashTitle, flyTo, haptic, sfx, systemNotify } from '../motion';
 import { Icon } from '../components/icons';
 import { InstallButton } from '../pwa';
+import { GuestAlerts } from '../components/push-ui';
+import { syncPush } from '../push';
 
 const css = (v: Record<string, string | number>) => v as CSSProperties;
 function BagIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M5 7h14l1 14H4L5 7Z" /><path d="M8 8V6a4 4 0 0 1 8 0v2" /></svg>; }
@@ -321,11 +323,10 @@ export function TrackPage({ id }: { id: string }) {
   const key = query.get('key') || myOrders().find(o => o.id === id)?.key || '';
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
-  const [perm, setPerm] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
   const prev = useRef<Order | null>(null);
   const nowTs = useNow(1000);
   const load = () => api<{ order: Order }>(`/orders/${id}?key=${encodeURIComponent(key)}`).then(r => setOrder(r.order)).catch(e => setError(e.message));
-  useEffect(() => { load(); }, [id, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); syncPush(`${id}.${key}`); }, [id, key]); // eslint-disable-line react-hooks/exhaustive-deps
   const live = useLiveStream({ orders: [`${id}.${key}`], onOrder: o => o.id === id && setOrder(o), onHello: load });
 
   // React to changes: each step gets its own moment.
@@ -371,7 +372,7 @@ export function TrackPage({ id }: { id: string }) {
         <ol className="steps" style={css({ '--fill': idx / (STEPS.length - 1) })}>{STEPS.map((st, i) => <li key={st.s} className={i < idx ? 'done' : i === idx ? 'current' : ''}><span className="dot"><Icon name={i < idx ? 'check' : st.icon} size={18} /></span><span>{st.label}</span>{order.times[st.s] && <small>{clock(order.times[st.s]!)}</small>}</li>)}</ol>
         <div className="progress" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct}%` }} /></div>
         <p className="muted small">{doneItems} of {order.items.length} dishes ready. Ordered {ago(order.createdAt, nowTs)} ago.</p>
-        {(order.status === 'new' || order.status === 'preparing') && perm === 'default' && <button className="btn btn-gold notify-me" onClick={async () => { const r = await askNotifications(); setPerm(r); if (r === 'granted') { toast('We’ll tell you when it’s ready'); systemNotify('Notifications are on', `We'll tell you when order #${order.number} is ready.`, { force: true }); } }}><Icon name="bell" size={18} /> Tell me when it's ready</button>}
+        {(order.status === 'new' || order.status === 'preparing') && <GuestAlerts order={`${order.id}.${key}`} />}
       </>}
     </section>
     <section className="card receipt reveal">

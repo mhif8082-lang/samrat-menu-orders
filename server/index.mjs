@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Store, hashPin, checkPin } from './store.mjs';
 import { SEED_MENU, CATEGORIES } from './menu.mjs';
+import { createPush } from './push.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -39,6 +40,8 @@ if (!db.menuVersion) db.menuVersion = 1;
 if (process.argv.includes('--reset-menu')) { db.menu = SEED_MENU.map(d => ({ available: true, ...d })); db.categories = [...CATEGORIES]; console.log('Menu reset from server/menu.mjs'); }
 store.save();
 if (process.argv.includes('--reset-menu') && !process.argv.includes('--serve')) process.exit(0);
+const push = createPush(db, store);
+const lastState = new Map(db.orders.map(o => [o.id, { status: o.status, assist: o.assist?.at, paid: o.paid }]));
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const now = () => Date.now();
@@ -85,6 +88,46 @@ const guestView = o => ({ id: o.id, number: o.number, table: o.table, name: o.na
 const pick = (o, keys) => Object.fromEntries(keys.map(k => [k, o[k]]));
 const staffView = o => { const { key, ...rest } = o; return rest; };
 
+// ── Push notifications to phones (work when the app is closed) ─────────────
+const where = o => o.table === 'Takeaway' ? 'Takeaway' : `Table ${o.table}`;
+const itemsFor = (o, station) => o.items.filter(i => !station || i.station === station).map(i => `${i.qty}× ${i.name}`).join(', ');
+const staffHome = { admin: '/staff/orders', waiter: '/staff/orders', tandoor: '/staff/station/tandoor', kitchen: '/staff/station/kitchen' };
+const openNew = () => db.orders.filter(x => x.status === 'new').length;
+function notifyDevices(o) {
+  const prev = lastState.get(o.id);
+  lastState.set(o.id, { status: o.status, assist: o.assist?.at, paid: o.paid });
+  const guest = s => s.kind === 'guest' && s.orderId === o.id;
+  const staffRole = (...roles) => s => s.kind === 'staff' && roles.includes(s.role);
+  const send = (filter, msg) => push.send(filter, msg).catch(() => {});
+  if (!prev) {
+    // New order: each section hears about its own items.
+    for (const role of ['admin', 'waiter', 'tandoor', 'kitchen']) {
+      const station = role === 'tandoor' || role === 'kitchen' ? role : null;
+      if (station && !o.items.some(i => i.station === station)) continue;
+      send(staffRole(role), { title: `New order #${o.number}, ${where(o).toLowerCase()}`, body: itemsFor(o, station), url: staffHome[role], tag: `new-${o.id}`, requireInteraction: role !== 'admin', badge: openNew(), kind: 'new' });
+    }
+    return;
+  }
+  if (prev.status !== o.status) {
+    if (o.status === 'preparing') send(guest, { title: 'The chef has started cooking', body: `Order #${o.number}`, url: `/order/${o.id}`, tag: `order-${o.id}` });
+    if (o.status === 'ready') {
+      send(guest, { title: 'Your food is ready', body: `Order #${o.number} is on its way to ${o.table === 'Takeaway' ? 'the counter' : `table ${o.table}`}.`, url: `/order/${o.id}`, tag: `order-${o.id}`, requireInteraction: true, kind: 'ready' });
+      send(staffRole('waiter', 'admin'), { title: `Ready to serve: #${o.number}`, body: `${where(o)}: ${itemsFor(o)}`, url: '/staff/orders', tag: `ready-${o.id}`, requireInteraction: true, kind: 'ready' });
+    }
+    if (o.status === 'cancelled') {
+      if (o.cancelledBy !== 'guest') send(guest, { title: 'Your order was cancelled', body: `Order #${o.number}. Please ask a member of staff.`, url: `/order/${o.id}`, tag: `order-${o.id}` });
+      for (const role of ['tandoor', 'kitchen', 'waiter']) if (role === 'waiter' || o.items.some(i => i.station === role))
+        send(staffRole(role), { title: `Order #${o.number} was cancelled`, body: where(o), url: staffHome[role], tag: `new-${o.id}`, badge: openNew() });
+    }
+    if (o.status === 'served' || o.status === 'cancelled') setTimeout(() => push.removeWhere(guest), 60_000);
+  }
+  if (o.assist && o.assist.at !== prev.assist) {
+    const what = o.assist.type === 'bill' ? 'wants the bill' : 'is calling for a waiter';
+    send(staffRole('waiter', 'admin'), { title: `${where(o)} ${what}`, body: `Order #${o.number}`, url: '/staff/orders', tag: `assist-${o.id}`, requireInteraction: true, kind: 'assist' });
+  }
+  if (o.paid && !prev.paid) send(guest, { title: 'Payment received', body: `Thank you. Order #${o.number}.`, url: `/order/${o.id}`, tag: `order-${o.id}` });
+}
+
 // ── Live updates (Server-Sent Events) ───────────────────────────────────────
 const clients = new Set();
 function broadcast(event, payload, filter = () => true) {
@@ -93,6 +136,7 @@ function broadcast(event, payload, filter = () => true) {
 }
 function pushOrder(o) {
   o.updatedAt = now();
+  notifyDevices(o);
   for (const c of clients) {
     if (c.staff) c.res.write(`event: order\ndata: ${JSON.stringify(staffView(o))}\n\n`);
     else if (c.orderIds.has(o.id)) c.res.write(`event: order\ndata: ${JSON.stringify(guestView(o))}\n\n`);
@@ -187,6 +231,26 @@ async function api(req, res, url) {
   const seg = p.split('/').filter(Boolean);
 
   if (p === '/health') return send(res, 200, { ok: true, at: now() });
+  if (p === '/push/key' && m === 'GET') return send(res, 200, { publicKey: push.publicKey });
+  if (p === '/push/subscribe' && m === 'POST') {
+    const b = await readJson(req);
+    const s = session(req, url);
+    if (b.order) {
+      const [id, key] = String(b.order).split('.'); const o = db.orders.find(x => x.id === id);
+      if (!o || o.key !== key) throw new HttpError(404, 'Order not found');
+      push.add(b.subscription, { kind: 'guest', orderId: o.id });
+    } else if (s) push.add(b.subscription, { kind: 'staff', staffId: s.staff.id, role: s.staff.role });
+    else throw new HttpError(401, 'Please sign in');
+    return send(res, 201, { ok: true });
+  }
+  if (p === '/push/unsubscribe' && m === 'POST') { const b = await readJson(req); if (typeof b.endpoint === 'string') push.remove(b.endpoint); return send(res, 204); }
+  if (p === '/push/test' && m === 'POST') {
+    const b = await readJson(req);
+    if (!session(req, url) && !b.order) throw new HttpError(401, 'Please sign in');
+    await push.send(x => x.sub.endpoint === b.endpoint, { title: 'Notifications are on', body: 'You’ll get an alert here even when the app is closed.', url: '/', tag: 'test' });
+    return send(res, 200, { ok: true });
+  }
+  if (p === '/push/sent' && m === 'GET') { requireRole(req, url, 'admin'); return send(res, 200, { sent: push.sent, subscribers: db.pushSubs.map(x => ({ kind: x.kind, role: x.role, orderId: x.orderId })) }); }
   // Polling fallback for networks that buffer the live stream.
   if (p === '/updates' && m === 'GET') {
     const since = Number(url.searchParams.get('since')) || 0;
@@ -347,6 +411,7 @@ async function api(req, res, url) {
       if (String(b.password).length < 6) throw new HttpError(400, 'Password must be at least 6 characters');
       target.password = hashPin(String(b.password));
       for (const [t, v] of Object.entries(db.sessions)) if (v.staffId === target.id) delete db.sessions[t];
+      push.removeWhere(x => x.staffId === target.id);
     }
     if (typeof b.name === 'string' && b.name.trim()) target.name = str(b.name, 40);
     store.save();
@@ -358,6 +423,7 @@ async function api(req, res, url) {
     const target = db.staff.find(x => x.id === seg[1]);
     if (target?.role === 'admin' && db.staff.filter(x => x.role === 'admin').length < 2) throw new HttpError(400, 'Keep at least one admin');
     db.staff = db.staff.filter(x => x.id !== seg[1]);
+    push.removeWhere(x => x.staffId === seg[1]);
     for (const [t, v] of Object.entries(db.sessions)) if (v.staffId === seg[1]) delete db.sessions[t];
     store.save();
     return send(res, 204);

@@ -85,6 +85,21 @@ It installs as an app on both: Android shows an **Install** prompt; iPhone users
 (the app shows a guide for this). Installed apps get order alerts as system notifications (iPhone needs iOS 16.4+
 and the app added to the home screen). Sound starts after the first tap, as phones require.
 
+### Alerts (push notifications)
+
+Every staff login shows **Turn on alerts** (also the bell in the top bar). Once on, the device gets notifications
+even when the app is closed or the phone is locked:
+
+| Who | Gets alerted for |
+|---|---|
+| Tandoor / Kitchen | new orders containing their items (stays on screen until tapped), cancellations |
+| Waiter / Admin | every new order, food ready to serve, table calling a waiter, bill requests |
+| Guest | "chef started cooking", "your food is ready", payment received (tap *Alert me when it's ready*) |
+
+iPhone/iPad: add the app to the Home Screen first (iOS 16.4+), then turn alerts on from the Home Screen app.
+Signing out turns alerts off on that device. Push keys are created automatically and kept in `data/db.json`.
+Alerts are tied to the web address: if the public link changes, each device must open the new link and turn alerts on again.
+
 ### Test orders
 
 Admins can delete an order permanently from **Front desk → All → Delete** (for test orders; removes it from sales).

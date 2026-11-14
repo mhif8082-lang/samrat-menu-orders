@@ -4,6 +4,7 @@ import { api, npr, refreshMenu, ROLE_INFO, STATIONS, useAuth, useMenu, type Dish
 import { CountUp, DishArt, Empty, Sheet, toast, VegMark } from '../components/ui';
 import { StaffShell, useStaff } from './staff-shell';
 import { Icon } from '../components/icons';
+import { AlertsSetting } from '../components/push-ui';
 
 // ── Dashboard ───────────────────────────────────────────────────────────────
 export function Dashboard() { return <StaffShell title="Dashboard"><DashInner /></StaffShell>; }
@@ -269,7 +270,6 @@ function SettingsInner() {
   const { sound, setSound } = useStaff();
   const [s, setS] = useState<Settings | null>(null);
   const [cats, setCats] = useState('');
-  const [perm, setPerm] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
   useEffect(() => { if (menu && !s) { setS(menu.settings); setCats(menu.categories.join('\n')); } }, [menu, s]);
   if (!s) return null;
   async function save(patch: Partial<Settings>) {
@@ -290,8 +290,7 @@ function SettingsInner() {
     </section>
     <section className="card form"><h3>This device</h3>
       <div className="setting"><div><b>Sound alerts</b><small>Chime for new orders and table calls.</small></div><label className="switch"><input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} /><span /></label></div>
-      <div className="setting"><div><b>Pop-up notifications</b><small>{perm === 'granted' ? 'On. Alerts show even when the app is in the background.' : perm === 'denied' ? 'Blocked in browser settings.' : 'Get alerts when this screen is in the background.'}</small></div>
-        {perm === 'default' && <button className="btn btn-sm btn-gold" onClick={() => Notification.requestPermission().then(setPerm)}>Enable</button>}</div>
+      <AlertsSetting />
     </section>
     <section className="card form"><h3>Menu categories</h3><p className="muted small">One per line, in the order guests see them.</p>
       <textarea rows={6} value={cats} onChange={e => setCats(e.target.value)} /><button className="btn btn-primary btn-sm" onClick={saveCats}>Save categories</button></section>

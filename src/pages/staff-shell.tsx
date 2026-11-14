@@ -5,6 +5,8 @@ import { LiveBadge, Logo, toast } from '../components/ui';
 import { notice } from '../components/fx';
 import { audioUnlocked, flashTitle, haptic, onAudioUnlock, setBadge, sfx, systemNotify, unlockAudio } from '../motion';
 import { InstallButton } from '../pwa';
+import { AlertsButton, StaffAlertsBanner } from '../components/push-ui';
+import { disablePush, syncPush } from '../push';
 import { Icon } from '../components/icons';
 
 interface StaffCtx { remove: (id: string) => Promise<void>; orders: Order[]; live: Live; update: (id: string, body: object) => Promise<void>; reload: () => void; sound: boolean; setSound: (v: boolean) => void; days: number; setDays: (d: number) => void }
@@ -50,6 +52,7 @@ export function StaffShell({ children, title, wide }: { children: ReactNode; tit
     }).catch(e => { if (e instanceof ApiError && e.status === 401) navigate('/staff/login', true); });
   }, [days]);
   useEffect(() => { if (auth) reload(); }, [auth, reload]);
+  useEffect(() => { if (auth) syncPush(); }, [auth?.token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const live = useLiveStream({
     staff: true, onHello: reload, onRemoved: id => setOrders(cur => cur.filter(o => o.id !== id)),
@@ -118,7 +121,7 @@ export function StaffShell({ children, title, wide }: { children: ReactNode; tit
           <InstallButton className="side-link" />
           <Link to="/" className="side-link"><Icon name="external" size={15} /> Guest view</Link>
           <div className="who"><span className="avatar">{auth.staff.name[0]}</span><div><b>{auth.staff.name}</b><small>{ROLE_INFO[role]?.label}</small></div>
-            <button className="icon-btn" title="Sign out" aria-label="Sign out" onClick={() => { api('/logout', { method: 'POST' }).catch(() => {}); setAuth(null); }}><Icon name="logout" size={17} /></button></div>
+            <button className="icon-btn" title="Sign out" aria-label="Sign out" onClick={async () => { await disablePush(); api('/logout', { method: 'POST' }).catch(() => {}); setAuth(null); }}><Icon name="logout" size={17} /></button></div>
         </div>
       </aside>
       <div className="s-scrim" onClick={() => setNavOpen(false)} />
@@ -128,9 +131,11 @@ export function StaffShell({ children, title, wide }: { children: ReactNode; tit
           <h1>{title}</h1>
           <div className="s-top-right">
             <button className={`icon-btn${sound ? ' on' : ''}`} onClick={() => setSound(!sound)} aria-pressed={sound} title={sound ? 'Sound on' : 'Sound off'} aria-label="Toggle sound"><Icon name={sound ? 'sound' : 'mute'} size={18} /></button>
+            <AlertsButton />
             <LiveBadge state={live} />
           </div>
         </header>
+        <StaffAlertsBanner />
         {sound && !unlocked && <button className="unlock-bar" onClick={() => { unlockAudio(); sfx('newOrder'); }}><Icon name="sound" size={18} /> Tap here once to turn on order sounds on this device</button>}
         <div className="s-content" key={path}>{children}</div>
       </main>
