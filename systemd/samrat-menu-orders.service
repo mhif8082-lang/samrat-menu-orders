@@ -1,0 +1,12 @@
+[Unit]
+Description=Samrat Menu Orders (server + public tunnel)
+After=network-online.target
+
+[Service]
+WorkingDirectory=/home/savant/projects/samrat-menu-orders
+ExecStart=/home/savant/projects/samrat-menu-orders/launch.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
