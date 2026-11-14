@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { asset } from '../base';
 import { api, ApiError, ago, clock, myOrders, npr, rememberOrder, useLiveStream, useMenu, useNow, type Dish, type Order, type Status } from '../api';
 import { addToCart, cartKey, cartLines, cartSummary, clearCart, dishCount, getTable, saveTable, setNote, useCart } from '../cart';
 import { Link, navigate, useRoute } from '../router';
@@ -58,8 +59,8 @@ export function Home() {
       </div>
       <div className="hero-visual" ref={visual}>
         <Embers density={30} />
-        <div className="orbit" aria-hidden="true">{featured.map((d, i) => <img key={d.id} src={d.image} alt="" style={css({ '--i': i })} />)}</div>
-        <div className="plate-wrap"><img className="hero-plate" src="/assets/food/butter-chicken.webp" alt="Butter chicken with naan" /></div>
+        <div className="orbit" aria-hidden="true">{featured.map((d, i) => <img key={d.id} src={asset(d.image)} alt="" style={css({ '--i': i })} />)}</div>
+        <div className="plate-wrap"><img className="hero-plate" src={asset('/assets/food/butter-chicken.webp')} alt="Butter chicken with naan" /></div>
         <div className="seal" aria-hidden="true"><span>Fresh from</span><strong>the tandoor</strong><span>Made with heart</span></div>
         <div className="steam" aria-hidden="true"><i /><i /><i /></div>
       </div>
@@ -131,7 +132,7 @@ export function MenuPage() {
     {!search && !vegOnly && favourites.length > 0 && <section className="favs" aria-label="House favourites">
       <h2 className="favs-h">House favourites</h2>
       <div className="fav-rail">{favourites.map((d, i) => <button key={d.id} className="fav reveal" style={css({ '--d': i })} onClick={() => setDetail(d)}>
-        <img src={d.image} alt="" loading="lazy" /><span><b>{d.name}</b><small>{priceLabel(d)}</small></span></button>)}</div>
+        <img src={asset(d.image)} alt="" loading="lazy" /><span><b>{d.name}</b><small>{priceLabel(d)}</small></span></button>)}</div>
     </section>}
     <div className="menu-sticky">
       <div className="menu-tools">
@@ -177,7 +178,7 @@ function DishCard({ dish, qty, index, onOpen }: { dish: Dish; qty: number; index
   };
   return <article ref={card} className={`dish-card reveal${off ? ' sold-out' : ''}${qty > 0 ? ' in-cart' : ''}`} style={css({ '--d': index % 4 })}>
     <button className="dish-photo" onClick={onOpen} aria-label={`About ${dish.name}`}>
-      <img src={dish.image} alt="" loading="lazy" width="400" height="300" />
+      <img src={asset(dish.image)} alt="" loading="lazy" width="400" height="300" />
       {dish.badge && !off && <span className="badge">{dish.badge}</span>}
       {off && <span className="badge sold">{askStaff(dish) ? 'Ask staff' : 'Sold out'}</span>}
       {qty > 0 && <span className="in-cart-tag" key={qty}><Icon name="check" size={13} /> {qty}</span>}
@@ -229,7 +230,7 @@ function DishDetail({ dish, onDone }: { dish: Dish; onDone: () => void }) {
   const [note, setN] = useState(cart[key]?.note || '');
   const price = dish.options?.find(o => o.label === option)?.price ?? dish.price;
   return <div className="dish-detail">
-    <div className="dd-photo">{dish.image ? <img src={dish.image} alt={dish.name} /> : <div className="dd-type"><Embers density={16} /><Icon name={dish.station === 'bar' ? 'glass' : dish.station === 'tandoor' ? 'tandoor' : 'pot'} size={40} /><span>{dish.category}</span></div>}</div>
+    <div className="dd-photo">{dish.image ? <img src={asset(dish.image)} alt={dish.name} /> : <div className="dd-type"><Embers density={16} /><Icon name={dish.station === 'bar' ? 'glass' : dish.station === 'tandoor' ? 'tandoor' : 'pot'} size={40} /><span>{dish.category}</span></div>}</div>
     <div className="dd-body">
       {dish.image && <p className="dd-cat">{dish.category}</p>}
       <div className="dish-title"><h2>{dish.name}</h2><VegMark veg={dish.veg} /></div>
@@ -279,7 +280,7 @@ function Basket({ onClose, onPlaced }: { onClose: () => void; onPlaced: (o: Orde
     <div className="sheet-head"><h2>Your basket</h2><button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={18} /></button></div>
     {lines.length === 0 ? <Empty icon="bag" title="Your basket is empty">Add a few dishes and they'll show up here.<br /><button className="btn btn-primary" style={{ marginTop: 16 }} onClick={onClose}>Browse the menu</button></Empty> : <>
       <div className="basket-lines">{lines.map((l, i) => <div className="b-line" key={l.key} style={css({ '--d': i })}>
-        {l.dish.image ? <img src={l.dish.image} alt="" /> : <span className="b-mono" aria-hidden="true">{l.dish.name.split(/\s+/).filter(w => /[a-z]/i.test(w)).map(w => w[0]).join('').slice(0, 2).toUpperCase()}</span>}
+        {l.dish.image ? <img src={asset(l.dish.image)} alt="" /> : <span className="b-mono" aria-hidden="true">{l.dish.name.split(/\s+/).filter(w => /[a-z]/i.test(w)).map(w => w[0]).join('').slice(0, 2).toUpperCase()}</span>}
         <div className="b-info"><b>{l.dish.name}{l.option && <small className="b-opt"> {l.option}</small>}</b>{!l.dish.available && <span className="warn">Sold out. Remove it to continue.</span>}
           <input className="b-note" value={l.note} onChange={e => setNote(l.key, e.target.value)} placeholder="Add a request" aria-label={`Request for ${l.dish.name}`} />
           <div className="stepper sm"><button onClick={() => { addToCart(l.key, -1); sfx('remove'); }} aria-label="Less"><Icon name="minus" size={14} /></button><span key={l.qty} className="pop">{l.qty}</span><button onClick={() => { addToCart(l.key, 1); sfx('add'); }} aria-label="More"><Icon name="plus" size={14} /></button></div>

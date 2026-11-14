@@ -13,6 +13,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://mhif8082-lang.github.io').split(',').map(x => x.trim()).filter(Boolean);
 const store = new Store(process.env.DATA_FILE || path.join(ROOT, 'data', 'db.json'));
 
 // ── Seed ────────────────────────────────────────────────────────────────────
@@ -476,7 +477,19 @@ function serveStatic(req, res, url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://local');
   try {
-    if (url.pathname.startsWith('/api/')) return await api(req, res, url);
+    if (url.pathname.startsWith('/api/')) {
+      // The app on GitHub Pages talks to this server from another address: allow only known app addresses.
+      const origin = req.headers.origin;
+      if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        res.setHeader('access-control-allow-origin', origin);
+        res.setHeader('vary', 'origin');
+        res.setHeader('access-control-allow-headers', 'authorization, content-type');
+        res.setHeader('access-control-allow-methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+        res.setHeader('access-control-max-age', '600');
+      }
+      if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+      return await api(req, res, url);
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'Method not allowed');
     serveStatic(req, res, url);
   } catch (err) {

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { asset } from '../base';
 import { Icon } from './icons';
 import { useSyncExternalStore } from 'react';
 import type { Live } from '../api';
 
 export function Logo({ size = 44 }: { size?: number }) {
-  return <img src="/assets/samrat-logo.svg" alt="" width={size} height={size} className="logo-mark" />;
+  return <img src={asset('/assets/samrat-logo.svg')} alt="" width={size} height={size} className="logo-mark" />;
 }
 
 /** Number that counts up when it changes. */
@@ -124,7 +125,7 @@ export function chime(kind: 'new' | 'assist' = 'new') {
 export function notify(title: string, body: string) {
   try {
     if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-      navigator.serviceWorker?.ready.then(r => r.showNotification(title, { body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: title })).catch(() => new Notification(title, { body }));
+      navigator.serviceWorker?.ready.then(r => r.showNotification(title, { body, icon: asset('/icons/icon-192.png'), badge: asset('/icons/badge-96.png'), tag: title })).catch(() => new Notification(title, { body }));
     }
     navigator.vibrate?.([120, 60, 120]);
   } catch { /* notifications unavailable */ }

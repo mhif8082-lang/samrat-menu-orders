@@ -14,7 +14,7 @@ const standalone = () => matchMedia('(display-mode: standalone)').matches || (na
 
 export function registerSW() {
   if ('serviceWorker' in navigator && window.isSecureContext) {
-    window.addEventListener('load', () => navigator.serviceWorker?.register('/sw.js').catch(() => {}));
+    window.addEventListener('load', () => navigator.serviceWorker?.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL }).catch(() => {}));
   }
 }
 export const useInstall = () => useSyncExternalStore(cb => { ls.add(cb); return () => ls.delete(cb); }, () => deferred);

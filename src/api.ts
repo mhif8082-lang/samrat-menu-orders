@@ -1,4 +1,27 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { BASE, REMOTE_BACKEND } from './base';
+
+// ── Finding the server ───────────────────────────────────────────────────────
+// On GitHub Pages the server is the laptop, reached through a public link that can change.
+// The laptop publishes its current link in backend.json; we read it, remember it, and re-read it on failure.
+let apiBase = REMOTE_BACKEND ? (() => { try { return localStorage.getItem('smo-api') || ''; } catch { return ''; } })() : '/api';
+let resolving: Promise<string> | null = null;
+let lastResolve = 0;
+export async function resolveApi(force = false): Promise<string> {
+  if (!REMOTE_BACKEND) return '/api';
+  if (apiBase && !force) return apiBase;
+  if (force && Date.now() - lastResolve < 4000 && apiBase) return apiBase;
+  resolving ??= (async () => {
+    try {
+      const r = await fetch(`${BASE}backend.json?t=${Date.now()}`, { cache: 'no-store' });
+      const j = await r.json() as { url?: string };
+      if (j.url) { apiBase = j.url.replace(/\/$/, '') + '/api'; try { localStorage.setItem('smo-api', apiBase); } catch { /* ignore */ } }
+    } catch { /* keep the last known address */ }
+    lastResolve = Date.now();
+    return apiBase;
+  })().finally(() => { resolving = null; });
+  return resolving;
+}
 
 export type Station = 'tandoor' | 'kitchen' | 'bar';
 export type Status = 'new' | 'preparing' | 'ready' | 'served' | 'cancelled';
@@ -57,9 +80,18 @@ export class ApiError extends Error { constructor(public status: number, msg: st
 export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (auth) headers.authorization = `Bearer ${auth.token}`;
-  let res: Response;
-  try { res = await fetch(`/api${path}`, { method: opts.method || 'GET', headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body) }); }
-  catch { throw new ApiError(0, 'You appear to be offline. Check your connection and try again.'); }
+  let res: Response | null = null;
+  const init = { method: opts.method || 'GET', headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body) };
+  // Try the known server address; if it's gone (laptop restarted with a new link), look it up again and retry once.
+  for (let attempt = 0; attempt < 2 && !res; attempt++) {
+    const base = await resolveApi(attempt > 0);
+    try {
+      const r = await fetch(`${base}${path}`, init);
+      if (REMOTE_BACKEND && attempt === 0 && [502, 503, 504, 521, 522, 523, 530].includes(r.status)) continue;
+      res = r;
+    } catch { if (!REMOTE_BACKEND) break; }
+  }
+  if (!res) throw new ApiError(0, REMOTE_BACKEND ? 'The restaurant system is offline right now. Please ask a member of staff.' : 'You appear to be offline. Check your connection and try again.');
   if (res.status === 401 && auth && path !== '/login') setAuth(null);
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
@@ -103,7 +135,7 @@ export function useLiveStream(opts: { staff?: boolean; orders?: string[]; onOrde
       if (!streaming && !document.hidden) {
         try {
           const headers: Record<string, string> = auth ? { authorization: `Bearer ${auth.token}` } : {};
-          const r = await fetch(`/api/updates?${q}&since=${since - 3000}`, { headers });
+          const r = await fetch(`${await resolveApi(fails > 2)}/updates?${q}&since=${since - 3000}`, { headers });
           if (!r.ok) throw new Error();
           const data: { at: number; menuVersion: number; orders: Order[] } = await r.json();
           since = data.at; fails = 0;
@@ -115,8 +147,9 @@ export function useLiveStream(opts: { staff?: boolean; orders?: string[]; onOrde
       }
       pollTimer = window.setTimeout(poll, 2000);
     };
-    const connect = () => {
-      es = new EventSource(`/api/stream?${q}`);
+    const connect = async () => {
+      const base = await resolveApi(); if (closed) return;
+      es = new EventSource(`${base}/stream?${q}`);
       es.addEventListener('hello', () => { streaming = true; setState('live'); handlers.current.onHello?.(); });
       es.addEventListener('order', e => handlers.current.onOrder?.(JSON.parse((e as MessageEvent).data)));
       es.addEventListener('menu', e => setMenu(JSON.parse((e as MessageEvent).data)));

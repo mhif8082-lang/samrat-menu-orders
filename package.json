@@ -9,6 +9,7 @@
     "start": "node server/index.mjs",
     "reset-menu": "node server/index.mjs --reset-menu",
     "launch": "./launch.sh",
+    "deploy": "scripts/publish-pages.sh",
     "typecheck": "tsc --noEmit",
     "test": "node --test server/*.test.mjs"
   },

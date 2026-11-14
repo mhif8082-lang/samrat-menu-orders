@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
+import { asset } from '../base';
 import { confetti, haptic, isIOS, isStandalone, reduced, sfx } from '../motion';
 import { install, useInstall } from '../pwa';
 import { safeGet, safeSet } from '../api';
@@ -74,7 +75,7 @@ export function OrderSent({ number, table, images, onDone }: { number: number; t
   return <div className="order-sent" ref={ref} role="alertdialog" aria-label={`Order ${number} sent to the kitchen`}>
     <Embers density={40} />
     <div className="os-stage">
-      <div className="os-drops">{images.slice(0, 5).map((src, i) => <img key={i} src={src} alt="" style={{ '--i': i, '--x': `${(i - (Math.min(images.length, 5) - 1) / 2) * 46}px` } as CSSProperties} />)}</div>
+      <div className="os-drops">{images.slice(0, 5).map((src, i) => <img key={i} src={asset(src)} alt="" style={{ '--i': i, '--x': `${(i - (Math.min(images.length, 5) - 1) / 2) * 46}px` } as CSSProperties} />)}</div>
       <Tandoor heat={3} size={210} className="os-tandoor" />
     </div>
     <div className="os-ticket">

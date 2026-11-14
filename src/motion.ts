@@ -1,3 +1,4 @@
+import { asset } from './base';
 // Motion, sound and device helpers shared across the app.
 // Everything respects prefers-reduced-motion and degrades quietly on devices
 // without the API (e.g. iOS has no navigator.vibrate).
@@ -114,7 +115,7 @@ export async function systemNotify(title: string, body: string, opts: { tag?: st
     // Push is on: the server's push already shows this notification, so don't double up.
     if (!opts.force) { try { if (localStorage.getItem('smo-push-on') === '1') return; } catch { /* ignore */ } }
     const reg = await navigator.serviceWorker?.getRegistration();
-    const o = { body, icon: '/icons/icon-192.png', badge: '/icons/badge-96.png', tag: opts.tag || title, data: { url: opts.url || location.pathname + location.search }, vibrate: [200, 100, 200] } as NotificationOptions;
+    const o = { body, icon: asset('/icons/icon-192.png'), badge: asset('/icons/badge-96.png'), tag: opts.tag || title, data: { url: opts.url || location.pathname + location.search }, vibrate: [200, 100, 200] } as NotificationOptions;
     if (reg) await reg.showNotification(title, o); else new Notification(title, o);
   } catch { /* ignore */ }
 }
@@ -130,7 +131,7 @@ export function flyTo(from: Element | null, image?: string) {
   if (!from || !target || reduced()) return;
   const a = from.getBoundingClientRect(); const b = target.getBoundingClientRect();
   const el = document.createElement('div'); el.className = 'fly';
-  if (image) el.style.backgroundImage = `url(${image})`; else el.classList.add('fly-dot');
+  if (image) el.style.backgroundImage = `url(${asset(image)})`; else el.classList.add('fly-dot');
   const x0 = a.left + a.width / 2, y0 = a.top + a.height / 2, x1 = b.left + b.width / 2, y1 = b.top + b.height / 2;
   el.style.left = `${x0}px`; el.style.top = `${y0}px`;
   document.body.appendChild(el);

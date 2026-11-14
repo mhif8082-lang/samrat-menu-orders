@@ -8,5 +8,5 @@ PORT="$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2)"; PORT="${PORT:-8080}"
 exec .tools/cloudflared tunnel --no-autoupdate --protocol http2 --url "http://localhost:$PORT" 2>&1 | while IFS= read -r line; do
   echo "$line"
   url=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' <<<"$line" || true)
-  [ -n "$url" ] && echo "$url" > .tools/public-url.txt && echo "Public link: $url"
+  if [ -n "$url" ]; then echo "$url" > .tools/public-url.txt; echo "Public link: $url"; (scripts/publish-backend.sh "$url" &); fi
 done

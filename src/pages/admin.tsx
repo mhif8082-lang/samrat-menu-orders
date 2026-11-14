@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { asset, PUBLIC_APP_URL } from '../base';
 import QRCode from 'qrcode';
 import { api, npr, refreshMenu, ROLE_INFO, STATIONS, useAuth, useMenu, type Dish, type Role, type Settings, type StaffMember, type Station } from '../api';
 import { CountUp, DishArt, Empty, Sheet, toast, VegMark } from '../components/ui';
@@ -103,7 +104,7 @@ function MenuInner() {
     {menu.categories.map(c => { const list = items.filter(d => d.category === c); return list.length ? <section key={c} className="admin-group">
       <h3 className="sub-h">{c} <small>{list.length}</small></h3>
       <div className="admin-list">{list.map(d => <div key={d.id} className={`admin-row${d.available ? '' : ' off'}`}>
-        <div className="a-thumb">{d.image ? <img src={d.image} alt="" /> : <DishArt name={d.name} station={d.station} />}</div>
+        <div className="a-thumb">{d.image ? <img src={asset(d.image)} alt="" /> : <DishArt name={d.name} station={d.station} />}</div>
         <div className="a-info"><b>{d.name} <VegMark veg={d.veg} /></b><small>{STATIONS.find(s => s.id === d.station)?.label}, {d.price > 0 ? (d.options?.length ? d.options.map(o => `${o.label} ${o.price}`).join(' · ') : npr(d.price)) : 'No price yet'}</small></div>
         <label className="switch" title={d.available ? 'Available' : 'Sold out'}><input type="checkbox" checked={d.available} onChange={() => toggle(d)} aria-label={`${d.name} available`} /><span /></label>
         {isManager && <button className="btn btn-text btn-sm" onClick={() => setEdit(d)}>Edit</button>}
@@ -207,7 +208,7 @@ function TablesInner() {
   const n = menu?.settings.tables || 0;
   useEffect(() => {
     const list = [...Array.from({ length: n }, (_, i) => String(i + 1)), 'Takeaway'];
-    Promise.all(list.map(async t => [t, await QRCode.toString(`${location.origin}/menu?table=${encodeURIComponent(t)}`, { type: 'svg', margin: 1, color: { dark: '#401520', light: '#fffaf2' } })] as const))
+    Promise.all(list.map(async t => [t, await QRCode.toString(`${PUBLIC_APP_URL}menu?table=${encodeURIComponent(t)}`, { type: 'svg', margin: 1, color: { dark: '#401520', light: '#fffaf2' } })] as const))
       .then(e => setQrs(Object.fromEntries(e)));
   }, [n]);
   if (!menu) return null;
