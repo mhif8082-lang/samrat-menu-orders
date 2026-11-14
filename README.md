@@ -3,6 +3,8 @@
 Table ordering for Samrat Tandoori. Guests order from their phones. Orders appear **instantly** on the
 kitchen screens, and the guest watches progress live until the food is ready.
 
+**Open it here:** https://mhif8082-lang.github.io/samrat-menu-orders/ (permanent address)
+
 Installable as an app (PWA) on Android, iPhone, Windows, Mac and Linux. Open the site and tap **Install app**
 (or *Add to Home Screen* on iPhone).
 
@@ -55,6 +57,17 @@ Four built-in logins. Each goes straight to its own screen after signing in:
 
 Passwords live in `.env` (`ADMIN_PASSWORD`, `WAITER_PASSWORD`, `TANDOOR_PASSWORD`, `KITCHEN_PASSWORD`) and can
 be changed any time on **Staff → Team & logins** (admin). Extra logins (e.g. `waiter2`) can be created there too.
+
+### How it's hosted
+
+* **The app** lives on GitHub Pages at a permanent address: `https://mhif8082-lang.github.io/samrat-menu-orders/`.
+  Table QR codes, installed apps and alerts all use this address.
+* **The server** (orders, accounts, alerts) runs on the restaurant laptop and is reached through a free Cloudflare
+  tunnel. Its link changes when the laptop restarts. The laptop then publishes the new link to `backend.json` on
+  GitHub automatically (`scripts/publish-backend.sh`) and open screens reconnect by themselves (about 30 seconds).
+* The laptop must be on (and not asleep) during service. When it's off, guests can open the menu but can't send orders.
+* After changing the app's code: `npm run build && npm run deploy` (publishes the GitHub copy) and
+  `systemctl --user restart samrat-menu-orders` (updates the server; the link stays the same).
 
 ### Keep it running
 
